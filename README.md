@@ -38,7 +38,6 @@ Handles the callback from Google after user authentication. Only allows login fo
 This endpoint is called by Google after user login. No direct usage.
 
 > [!CAUTION]
-> **⚠️ Caution**
 >
 > The `/api/auth/google/callback/` endpoint is **not intended for direct user access**.
 > It is used internally by the Google OAuth2 flow and should only be called by Google after user authentication.
