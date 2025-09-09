@@ -1,0 +1,6 @@
+django
+djangorestframework
+pillow
+requests
+djangorestframework-simplejwt
+mysqlclient
