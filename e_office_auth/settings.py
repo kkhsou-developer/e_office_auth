@@ -84,11 +84,11 @@ DATABASES = {
         'NAME': BASE_DIR / 'db.sqlite3',
 
         # 'ENGINE': 'django.db.backends.mysql',
-        # 'NAME': 'e_office_auth',
-        # 'USER': 'root',
-        # 'PASSWORD': "root123",
-        # 'HOST': '127.0.0.1',
-        # 'PORT': '3307'
+        # 'NAME': os.getenv("DB_NAME"),
+        # 'USER': os.getenv("DB_USER"),
+        # 'PASSWORD': os.getenv("DB_PASSWORD"),
+        # 'HOST': os.getenv("DB_HOST"),
+        # 'PORT': os.getenv("DB_PORT"),
     }
 }
 
@@ -150,5 +150,6 @@ AUTH_USER_MODEL = 'api.Employee'
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
+STATIC_ROOT = BASE_DIR / "static"
 
 CSRF_TRUSTED_ORIGINS = os.getenv("CSRF_TRUSTED_ORIGINS").split(',')
