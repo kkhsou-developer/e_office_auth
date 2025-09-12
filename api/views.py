@@ -6,7 +6,7 @@ from django.conf import settings
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework import status
-from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.tokens import RefreshToken, UntypedToken
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from urllib.parse import urlencode, parse_qs
 from django.http import JsonResponse
@@ -72,23 +72,24 @@ class Google_callback(APIView):
 
         except Exception as e:
             logger.error(f"OAuth2 Error: {str(e)}")
-            return redirect(f"{frontend_redirect_uri}?error=oauth_failed! Try again later.&status=500")
+            return redirect(f"{frontend_redirect_uri}?error=oauth failed! Try again later.&status=500")
         
         email = user_info.get("email")
         name = user_info.get("name", "")
         picture = user_info.get("picture", "")
 
-        # user = Employee.objects.get_or_create(email=email)
-        user = Employee.objects.filter(email=email).first()
+        # Find the user by their official email, which is the unique identifier
+        user = Employee.objects.filter(official_email=email).first() # Use official_email as it's the USERNAME_FIELD
         if not user:
             # allow only existing users to login
             logger.warning(f"Login attempt with unregistered email: {email}")
-            return Response({"error": "User not found"}, status=status.HTTP_404_NOT_FOUND) 
+            # return Response({"error": "User not found"}, status=status.HTTP_404_NOT_FOUND) 
+            return redirect(f"{frontend_redirect_uri}?error=email not found.&status=404")
         
         
         if not user.approved:
             logger.warning(f"Login attempt with unapproved user: {email}")
-            return redirect(f"{frontend_redirect_uri}?error=approval_pending! Try again later.&status=403") # only approved users can login
+            return redirect(f"{frontend_redirect_uri}?error=approval pending! Try again later.&status=403") # only approved users can login
         
         if not user.profile_pic:
             response = requests.get(picture)
@@ -113,12 +114,6 @@ class Google_callback(APIView):
 
 
 
-def write_to_file(data, filename="output.txt"):
-    with open(filename, "a") as f:
-        f.write(str(data))
-
-
-
 class TokenExchange(APIView):
     ''' Exchange code for tokens and user info '''
     permission_classes = [AllowAny]
@@ -139,4 +134,46 @@ class TokenExchange(APIView):
         empSerializer = EmployeeSerializer(user)
         
         # cache.delete(code)
-        return Response(empSerializer.data, status=status.HTTP_200_OK)
+        respData = {
+            'user': empSerializer.data,
+            'refresh': parsed.get("refresh")[0],
+            'access': parsed.get("access")[0],
+        }
+        return Response(respData, status=status.HTTP_200_OK)
+
+
+class PublicKeyView(APIView):
+    """
+    Exposes the public key for other services to verify JWTs.
+    This is used when you configure SimpleJWT to use asymmetric signing (e.g., RS256).
+    """
+    permission_classes = [AllowAny]
+
+    def get(self, request, *args, **kwargs):
+        # Simple JWT's settings object automatically derives the public key
+        # from the private SIGNING_KEY if VERIFYING_KEY is not set explicitly
+        # for this purpose. We will read it from settings.
+        try:
+            public_key = settings.SIMPLE_JWT['VERIFYING_KEY']
+            return Response({'public_key': public_key})
+        except Exception as e:
+            logger.error(f"Could not retrieve public key: {e}")
+            return Response({"error": "Could not retrieve public key."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class LogoutView(APIView):
+    """
+    Blacklists a refresh token to log a user out.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        try:
+            refresh_token = request.data["refresh"]
+            token = RefreshToken(refresh_token)
+            token.blacklist()
+            logger.info(f"User logged out successfully by blacklisting token.")
+            return Response(status=status.HTTP_205_RESET_CONTENT)
+        except Exception as e:
+            logger.error(f"Logout failed: {e}")
+            return Response({"error": "Invalid token or server error."}, status=status.HTTP_400_BAD_REQUEST)

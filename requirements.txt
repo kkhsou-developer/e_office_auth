@@ -5,3 +5,4 @@ requests
 djangorestframework-simplejwt
 mysqlclient
 python-dotenv
+cryptography # for JWT RS256 support for asymmetric keys

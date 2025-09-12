@@ -8,9 +8,11 @@ auth_urls = [
     path('google/callback/', views.Google_callback.as_view(), name='google_auth_callback'),
 
     path('token-exchange/', views.TokenExchange.as_view(), name='token_exchange'),
+    path('public-key/', views.PublicKeyView.as_view(), name='public_key'),
 
     # Auth features
-    # path('logout/', views.LogoutView.as_view(), name='logout'),
+    path('logout/', views.LogoutView.as_view(), name='logout'),
+    
     # path('profile/change-photo/', views.ChangeProfilePhotoView.as_view(), name='change_photo'),
     # path('profile/change-password/', views.ChangePasswordView.as_view(), name='change_password'),
 ]

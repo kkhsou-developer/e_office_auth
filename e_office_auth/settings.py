@@ -12,7 +12,9 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 
 from pathlib import Path
 import os
+from datetime import timedelta
 from dotenv import load_dotenv
+
 env_path = ".env"
 load_dotenv(dotenv_path=env_path)
 
@@ -153,3 +155,23 @@ MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 STATIC_ROOT = BASE_DIR / "static"
 
 CSRF_TRUSTED_ORIGINS = os.getenv("CSRF_TRUSTED_ORIGINS").split(',')
+
+
+# JWT_SECRET_DIR = os.path.join(BASE_DIR, 'secrets')
+JWT_SECRET_DIR = os.getenv("JWT_SECRET_PATH")
+
+SIMPLE_JWT = {
+    'ALGORITHM': 'RS256',
+    'SIGNING_KEY': open(os.path.join(JWT_SECRET_DIR, 'jwt_private.pem')).read(),
+    'VERIFYING_KEY': open(os.path.join(JWT_SECRET_DIR, 'jwt_public.pem')).read(),
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=15),
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=1),
+}
+
+
+REST_FRAMEWORK = {
+    "DEFAULT_AUTHENTICATION_CLASSES": (
+        "rest_framework_simplejwt.authentication.JWTAuthentication",
+        # ...other auth classes if any...
+    )
+}
