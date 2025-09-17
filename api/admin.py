@@ -11,9 +11,9 @@ class EmployeeAdmin(admin.ModelAdmin):
 
 @admin.register(Department)
 class DepartmentAdmin(admin.ModelAdmin):
-    list_display = ('dept_name', 'dept_code')
+    list_display = ('name', 'id')
 
 
 @admin.register(Designation)
 class DesignationAdmin(admin.ModelAdmin):
-    list_display = ('desig_name', 'desig_code')
+    list_display = ('name', 'id')

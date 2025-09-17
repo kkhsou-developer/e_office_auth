@@ -49,8 +49,6 @@ class Google_callback(APIView):
         state = request.GET.get("state")
         frontend_redirect_uri = base64.urlsafe_b64decode(state).decode()
 
-        # if not code:
-        #     return redirect
         try:        
             token_resp = requests.post(
                 "https://oauth2.googleapis.com/token",
@@ -72,7 +70,7 @@ class Google_callback(APIView):
 
         except Exception as e:
             logger.error(f"OAuth2 Error: {str(e)}")
-            return redirect(f"{frontend_redirect_uri}?error=oauth failed! Try again later.&status=500")
+            return redirect(f"{frontend_redirect_uri}?error=OAuth2 Error, try again later.&status=500")
         
         email = user_info.get("email")
         name = user_info.get("name", "")
@@ -83,23 +81,26 @@ class Google_callback(APIView):
         if not user:
             # allow only existing users to login
             logger.warning(f"Login attempt with unregistered email: {email}")
-            # return Response({"error": "User not found"}, status=status.HTTP_404_NOT_FOUND) 
-            return redirect(f"{frontend_redirect_uri}?error=email not found.&status=404")
+            return redirect(f"{frontend_redirect_uri}?error=Email not registered.&status=404")
         
         
         if not user.approved:
             logger.warning(f"Login attempt with unapproved user: {email}")
-            return redirect(f"{frontend_redirect_uri}?error=approval pending! Try again later.&status=403") # only approved users can login
+            return redirect(f"{frontend_redirect_uri}?error=Approval pending, try again later&status=403") # only approved users can login
         
-        if not user.profile_pic:
-            response = requests.get(picture)
-            if response.status_code == 200:
-                file_name = f'{uuid.uuid4()}_{user.emp_id}.jpg'
-                user.profile_pic.save(file_name, ContentFile(response.content), save=True)
-                user.save()
+        # if not user.profile_pic:
+        #     response = requests.get(picture)
+        #     if response.status_code == 200:
+        #         file_name = f'{uuid.uuid4()}_{user.emp_id}.jpg'
+        #         user.profile_pic.save(file_name, ContentFile(response.content), save=True)
+        #         user.save()
                 
 
         refresh = RefreshToken.for_user(user)
+
+        # Add custom claims to the token payload
+        refresh['official_email'] = "admin@kkhsou.in"
+        refresh['dept_name'] = user.dept.name if user.dept else None
 
         respData = urlencode({
             "refresh": str(refresh),
@@ -111,7 +112,6 @@ class Google_callback(APIView):
         uuidCode = str(uuid.uuid4())
         cache.set(uuidCode, respData, timeout=300)
         return redirect(f"{frontend_redirect_uri}?code={uuidCode}&status=200")
-
 
 
 class TokenExchange(APIView):
@@ -137,7 +137,7 @@ class TokenExchange(APIView):
         respData = {
             'user': empSerializer.data,
             'refresh': parsed.get("refresh")[0],
-            'access': parsed.get("access")[0],
+            'access': parsed.get("access")[0]
         }
         return Response(respData, status=status.HTTP_200_OK)
 

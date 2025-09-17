@@ -44,6 +44,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'rest_framework',
     'api'
 ]
 
@@ -82,15 +83,15 @@ WSGI_APPLICATION = 'e_office_auth.wsgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        # 'ENGINE': 'django.db.backends.sqlite3',
+        # 'NAME': BASE_DIR / 'db.sqlite3',
 
-        # 'ENGINE': 'django.db.backends.mysql',
-        # 'NAME': os.getenv("DB_NAME"),
-        # 'USER': os.getenv("DB_USER"),
-        # 'PASSWORD': os.getenv("DB_PASSWORD"),
-        # 'HOST': os.getenv("DB_HOST"),
-        # 'PORT': os.getenv("DB_PORT"),
+        'ENGINE': 'django.db.backends.mysql',
+        'NAME': os.getenv('DB_NAME'),
+        'USER': os.getenv('DB_USER'),
+        'PASSWORD': os.getenv('DB_PASSWORD'),
+        'HOST': os.getenv('DB_HOST'),
+        'PORT': os.getenv('DB_PORT'),
     }
 }
 
@@ -143,11 +144,8 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 GOOGLE_CLIENT_ID = "664111386794-mhsc39n50cvmn3il26081uam9erikdjs.apps.googleusercontent.com"
 GOOGLE_CLIENT_SECRET = "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"
-# GOOGLE_REDIRECT_URI = "http://127.0.0.1:8000/api/g_auth2/"
 GOOGLE_REDIRECT_URI = "http://127.0.0.1:8000/api/auth/google/callback/"
 
-
-AUTH_USER_MODEL = 'api.Employee'
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
@@ -156,8 +154,6 @@ STATIC_ROOT = BASE_DIR / "static"
 
 CSRF_TRUSTED_ORIGINS = os.getenv("CSRF_TRUSTED_ORIGINS").split(',')
 
-
-# JWT_SECRET_DIR = os.path.join(BASE_DIR, 'secrets')
 JWT_SECRET_DIR = os.getenv("JWT_SECRET_PATH")
 
 SIMPLE_JWT = {
@@ -166,6 +162,8 @@ SIMPLE_JWT = {
     'VERIFYING_KEY': open(os.path.join(JWT_SECRET_DIR, 'jwt_public.pem')).read(),
     "ACCESS_TOKEN_LIFETIME": timedelta(minutes=15),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=1),
+    'USER_ID_FIELD': 'emp_id',
+    'USER_ID_CLAIM': 'emp_id',
 }
 
 
