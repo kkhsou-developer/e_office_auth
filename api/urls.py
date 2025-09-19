@@ -8,6 +8,8 @@ auth_urls = [
     path('google/callback/', views.Google_callback.as_view(), name='google_auth_callback'),
 
     path('token-exchange/', views.TokenExchange.as_view(), name='token_exchange'),
+    path('refresh-access/', views.RefreshAccessToken.as_view(), name='refresh_access'),
+
     path('public-key/', views.PublicKeyView.as_view(), name='public_key'),
 
     # Auth features

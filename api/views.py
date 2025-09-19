@@ -10,6 +10,7 @@ from rest_framework_simplejwt.tokens import RefreshToken, UntypedToken
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from urllib.parse import urlencode, parse_qs
 from django.http import JsonResponse
+from django.contrib.auth import login, logout
 import requests, base64, uuid, logging
 
 from .models import *
@@ -142,6 +143,27 @@ class TokenExchange(APIView):
         return Response(respData, status=status.HTTP_200_OK)
 
 
+class RefreshAccessToken(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        try:
+            print('refresh access request received')
+            refresh_token = request.data["refresh"]
+            token = RefreshToken(refresh_token)
+            
+            # Verify the refresh token
+            UntypedToken(refresh_token)
+
+            # Generate a new access token
+            access_token = str(token.access_token)
+            
+            return Response({"access": access_token}, status=status.HTTP_200_OK)
+        except Exception as e:
+            logger.error(f"Token renewal failed: {e}")
+            return Response({"error": "Invalid refresh token or server error."}, status=status.HTTP_400_BAD_REQUEST)
+
+
 class PublicKeyView(APIView):
     """
     Exposes the public key for other services to verify JWTs.
@@ -165,7 +187,7 @@ class LogoutView(APIView):
     """
     Blacklists a refresh token to log a user out.
     """
-    permission_classes = [IsAuthenticated]
+    permission_classes = [AllowAny]
 
     def post(self, request):
         try:
