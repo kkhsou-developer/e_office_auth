@@ -100,7 +100,7 @@ class Google_callback(APIView):
         refresh = RefreshToken.for_user(user)
 
         # Add custom claims to the token payload
-        refresh['official_email'] = "admin@kkhsou.in"
+        refresh['official_email'] = user.official_email
         refresh['dept_name'] = user.dept.name if user.dept else None
 
         respData = urlencode({
@@ -183,19 +183,19 @@ class PublicKeyView(APIView):
             return Response({"error": "Could not retrieve public key."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-class LogoutView(APIView):
-    """
-    Blacklists a refresh token to log a user out.
-    """
-    permission_classes = [AllowAny]
+# class LogoutView(APIView):
+#     """
+#     Blacklists a refresh token to log a user out.
+#     """
+#     permission_classes = [AllowAny]
 
-    def post(self, request):
-        try:
-            refresh_token = request.data["refresh"]
-            token = RefreshToken(refresh_token)
-            token.blacklist()
-            logger.info(f"User logged out successfully by blacklisting token.")
-            return Response(status=status.HTTP_205_RESET_CONTENT)
-        except Exception as e:
-            logger.error(f"Logout failed: {e}")
-            return Response({"error": "Invalid token or server error."}, status=status.HTTP_400_BAD_REQUEST)
+#     def post(self, request):
+#         try:
+#             refresh_token = request.data["refresh"]
+#             token = RefreshToken(refresh_token)
+#             token.blacklist()
+#             logger.info(f"User logged out successfully by blacklisting token.")
+#             return Response(status=status.HTTP_205_RESET_CONTENT)
+#         except Exception as e:
+#             logger.error(f"Logout failed: {e}")
+#             return Response({"error": "Invalid token or server error."}, status=status.HTTP_400_BAD_REQUEST)

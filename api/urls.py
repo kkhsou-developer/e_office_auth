@@ -13,7 +13,7 @@ auth_urls = [
     path('public-key/', views.PublicKeyView.as_view(), name='public_key'),
 
     # Auth features
-    path('logout/', views.LogoutView.as_view(), name='logout'),
+    # path('logout/', views.LogoutView.as_view(), name='logout'),
     
     # path('profile/change-photo/', views.ChangeProfilePhotoView.as_view(), name='change_photo'),
     # path('profile/change-password/', views.ChangePasswordView.as_view(), name='change_password'),
