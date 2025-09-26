@@ -17,6 +17,8 @@ class Employee(models.Model):
     emp_category = models.CharField(max_length=20)
     user_type = models.CharField(max_length=20)
     approved = models.IntegerField()
+    accessible_modules = models.ManyToManyField('Module', through='EmployeeUserAccessibleModules', blank=True)
+
 
     class Meta:
         managed = False
@@ -50,3 +52,24 @@ class Designation(models.Model):
         return self.name
     
     
+class Module(models.Model):
+    id = models.AutoField(primary_key=True, db_column="id")
+    name = models.CharField(max_length=100)
+
+    class Meta:
+        managed = False
+        db_table = 'employee_module'
+
+    def __str__(self):
+        return self.name
+    
+    
+class EmployeeUserAccessibleModules(models.Model):
+    id = models.BigAutoField(primary_key=True)
+    employee = models.ForeignKey(Employee, models.DO_NOTHING, db_column='user_id')
+    module = models.ForeignKey('Module', models.DO_NOTHING)
+
+    class Meta:
+        managed = False
+        db_table = 'employee_user_accessible_modules'
+        unique_together = (('employee', 'module'),)

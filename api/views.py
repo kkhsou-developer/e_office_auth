@@ -133,8 +133,8 @@ class TokenExchange(APIView):
 
         user = get_object_or_404(Employee, emp_id=e_id)
         empSerializer = EmployeeSerializer(user)
-        
-        # cache.delete(code)
+
+        cache.delete(code)
         respData = {
             'user': empSerializer.data,
             'refresh': parsed.get("refresh")[0],
