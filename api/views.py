@@ -1,4 +1,3 @@
-from django.core.files.base import ContentFile
 from django.core.cache import cache
 from django.shortcuts import redirect, get_object_or_404
 from django.conf import settings
@@ -7,10 +6,8 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework import status
 from rest_framework_simplejwt.tokens import RefreshToken, UntypedToken
-from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework.permissions import AllowAny
 from urllib.parse import urlencode, parse_qs
-from django.http import JsonResponse
-from django.contrib.auth import login, logout
 import requests, base64, uuid, logging
 
 from .models import *
@@ -18,6 +15,57 @@ from .serializers import *
 # Create your views here.
 
 logger = logging.getLogger(__name__)
+
+
+def authenticate_and_redirect(email, redirect_uri, password=None, m_login = False):
+    """ Authenticate user and redirect to frontend with tokens in query params.
+    Args:
+        email (str, required): User's email for authentication.
+        redirect_uri (str, required): URI to redirect after authentication.
+        password (str | None, Optional): User's password for manual login. Defaults to None.
+        m_login (bool, Optional): Flag for manual login flow. Defaults to False.
+
+    Returns:
+        HttpResponseRedirect: Redirect response with tokens or error message.
+    """
+    user = Employee.objects.filter(official_email=email).first()
+    invalidUser = False
+
+    if not user:
+        invalidUser = True
+    
+    if m_login and user and not user.check_password(password):
+        invalidUser = True
+    
+    if invalidUser:
+        # allow only existing users to login
+        logger.warning(f"Login attempt with invalid credentials: {email}")
+        return redirect(f"{redirect_uri}?error=Invalid credentials.&status=404")
+    
+    if not user.approved:
+        logger.warning(f"Login attempt with unapproved user: {email}")
+        return redirect(f"{redirect_uri}?error=Approval pending, try again later&status=403") # only approved users can login
+        
+    refresh = RefreshToken.for_user(user)
+
+    # Add custom claims to the token payload
+    refresh['official_email'] = user.official_email
+    refresh['dept_name'] = user.dept.name if user.dept else None
+
+    respData = urlencode({
+        "refresh": str(refresh),
+        "access": str(refresh.access_token),
+        "e_id": user.emp_id,            
+    })
+    logger.info(f"User {email} logged in successfully.")
+
+    uuidCode = str(uuid.uuid4())
+    cache.set(uuidCode, respData, timeout=300)
+    return redirect(f"{redirect_uri}?code={uuidCode}&status=200")
+
+
+
+
 
 class Google_login(APIView):
     permission_classes = [AllowAny]
@@ -77,42 +125,23 @@ class Google_callback(APIView):
         name = user_info.get("name", "")
         picture = user_info.get("picture", "")
 
-        # Find the user by their official email, which is the unique identifier
-        user = Employee.objects.filter(official_email=email).first() # Use official_email as it's the USERNAME_FIELD
-        if not user:
-            # allow only existing users to login
-            logger.warning(f"Login attempt with unregistered email: {email}")
-            return redirect(f"{frontend_redirect_uri}?error=Email not registered.&status=404")
+        return authenticate_and_redirect(email, redirect_uri=frontend_redirect_uri, m_login=False)
+
+
+class Manual_login(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        email = request.data.get("email")
+        password = request.data.get("password")
         
+        if not email or not password:
+            return Response({"error": "Missing email or password"}, status=status.HTTP_400_BAD_REQUEST)
         
-        if not user.approved:
-            logger.warning(f"Login attempt with unapproved user: {email}")
-            return redirect(f"{frontend_redirect_uri}?error=Approval pending, try again later&status=403") # only approved users can login
-        
-        # if not user.profile_pic:
-        #     response = requests.get(picture)
-        #     if response.status_code == 200:
-        #         file_name = f'{uuid.uuid4()}_{user.emp_id}.jpg'
-        #         user.profile_pic.save(file_name, ContentFile(response.content), save=True)
-        #         user.save()
-                
+        frontend_redirect_uri = request.GET.get("response_uri", request.META.get('HTTP_REFERER'))
+        return authenticate_and_redirect(email, frontend_redirect_uri, password, m_login=True)
+    
 
-        refresh = RefreshToken.for_user(user)
-
-        # Add custom claims to the token payload
-        refresh['official_email'] = user.official_email
-        refresh['dept_name'] = user.dept.name if user.dept else None
-
-        respData = urlencode({
-            "refresh": str(refresh),
-            "access": str(refresh.access_token),
-            "e_id": user.emp_id,            
-        })
-        logger.info(f"User {email} logged in successfully.")
-
-        uuidCode = str(uuid.uuid4())
-        cache.set(uuidCode, respData, timeout=300)
-        return redirect(f"{frontend_redirect_uri}?code={uuidCode}&status=200")
 
 
 class TokenExchange(APIView):

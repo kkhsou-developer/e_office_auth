@@ -1,4 +1,5 @@
 from django.db import models
+from django.contrib.auth.hashers import check_password as django_check_password
 
 import uuid
 
@@ -9,6 +10,7 @@ import uuid
 class Employee(models.Model):
     emp_id = models.AutoField(primary_key=True)
     official_email = models.CharField(unique=True, max_length=254)
+    password = models.CharField(max_length=128)
     email = models.CharField(max_length=254, blank=True, null=True)
     name = models.CharField(max_length=100)
     profile_pic = models.CharField(max_length=100, blank=True, null=True)
@@ -26,6 +28,9 @@ class Employee(models.Model):
 
     def __str__(self):
         return self.name
+
+    def check_password(self, raw_password):
+        return django_check_password(raw_password, self.password)
 
 class Department(models.Model):
     id = models.AutoField(primary_key=True, db_column="id")
