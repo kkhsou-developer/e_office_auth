@@ -24,6 +24,6 @@ auth_urls = [
 
 urlpatterns = [
     # path('', views.home, name='home'),
-     path('auth/', include((auth_urls, "auth"), namespace="auth")),
+    path('', include((auth_urls, "auth"), namespace="auth")),
 
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
