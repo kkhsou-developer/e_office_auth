@@ -142,6 +142,79 @@ class Manual_login(APIView):
         return authenticate_and_redirect(email, frontend_redirect_uri, password, m_login=True)
     
 
+class ChangePasswordView(APIView):
+    def post(self, request):
+        try:
+            email = request.data.get("email")
+            otp = request.data.get("otp")
+            user = Employee.objects.filter(official_email=email).first()
+            print(otp)
+            if not user:
+                return Response({"error": "Email not found"}, status=status.HTTP_404_NOT_FOUND)
+
+            if not otp or otp == '':
+                new_otp = str(uuid.uuid4())[:6]
+
+                url = 'http://34.58.120.115/kkhsou/kkhsou_email_api/public/index.php'
+                headers = {
+                    'Content-Type': 'application/json',
+                    'X-API-KEY': '66d5dfb5bd721efe2ac05bf164811998682ea77e51e204e8e0a29bbd3b33134f'
+                }
+                
+                # Email content
+                email_data = {
+                    'to': email,
+                    'from': 'noreply@kkhsou.in',
+                    'subject': 'Password Reset OTP',
+                    'body': f'''
+                        <h2>Password Reset Request</h2>
+                        <p>Your OTP for password reset in KKHSOU E-Office is: <strong>{new_otp}</strong></p>
+                        <p>This OTP will expire soon. Please do not share this with anyone.</p>
+                    ''',
+                    'attachments': []
+                }
+
+                try:
+                    # response = requests.post(url, headers=headers, json=email_data)
+                    # response.raise_for_status()  # Raises exception for 4XX/5XX status codes
+
+                    # if response.status_code == 200:
+                    #     return Response({
+                    #         'message': 'OTP sent successfully',
+                    #         'otp': new_otp
+                    #     }, status=status.HTTP_200_OK)
+                    # else:
+                    #     return Response({
+                    #         'error': 'Failed to send email',
+                    #         'details': response.text
+                    #     }, status=500)
+                        return Response({
+                            'message': 'OTP sent successfully',
+                            'otp': new_otp
+                        }, status=status.HTTP_200_OK) 
+
+                except requests.exceptions.RequestException as e:
+                    return Response({
+                        'error': 'Failed to send email',
+                        'details': str(e)
+                    }, status=500)
+            
+            new_password = request.data.get("new_password")
+
+            if not new_password:
+                return Response({"error": "Missing new password"}, status=status.HTTP_400_BAD_REQUEST)
+
+            # user.set_password(new_password)
+            # user.save()
+
+            return Response({"message": "Password changed successfully"}, status=status.HTTP_200_OK)
+        
+        except Exception as e:
+            logger.error(f"Password change failed: {e}")
+            return Response({"error": "Password change failed"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+
 
 
 class TokenExchange(APIView):

@@ -6,3 +6,4 @@ djangorestframework-simplejwt
 mysqlclient
 python-dotenv
 cryptography # for JWT RS256 support for asymmetric keys
+django-cors-headers # used for CORS (Cross-Origin Resource Sharing) which allows web applications to interact with resources from different origins.

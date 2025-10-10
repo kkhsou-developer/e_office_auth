@@ -45,6 +45,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'rest_framework',
+    'corsheaders',
     'api'
 ]
 
@@ -56,6 +57,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    "corsheaders.middleware.CorsMiddleware",
 ]
 
 ROOT_URLCONF = 'e_office_auth.urls'
@@ -173,3 +175,11 @@ REST_FRAMEWORK = {
         # ...other auth classes if any...
     )
 }
+
+
+CORS_ALLOWED_ORIGINS = [
+    "http://127.0.0.1:8002",
+    "http://localhost:8002",   # optional, if you also use localhost
+]
+
+CORS_ALLOW_CREDENTIALS = True  # required if you send cookies
