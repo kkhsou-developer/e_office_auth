@@ -1,5 +1,5 @@
 from django.db import models
-from django.contrib.auth.hashers import check_password as django_check_password
+from django.contrib.auth.hashers import check_password as django_check_password, make_password
 
 import uuid
 
@@ -28,6 +28,9 @@ class Employee(models.Model):
 
     def __str__(self):
         return self.name
+
+    def set_password(self, raw_password):
+        self.password = make_password(raw_password)
 
     def check_password(self, raw_password):
         return django_check_password(raw_password, self.password)

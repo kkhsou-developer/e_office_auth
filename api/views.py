@@ -1,6 +1,8 @@
 from django.core.cache import cache
 from django.shortcuts import redirect, get_object_or_404
 from django.conf import settings
+from django.core.mail import send_mail
+from django.utils.html import strip_tags
 
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -155,57 +157,44 @@ class ChangePasswordView(APIView):
             if not otp or otp == '':
                 new_otp = str(uuid.uuid4())[:6]
 
-                url = 'http://34.58.120.115/kkhsou/kkhsou_email_api/public/index.php'
-                headers = {
-                    'Content-Type': 'application/json',
-                    'X-API-KEY': '66d5dfb5bd721efe2ac05bf164811998682ea77e51e204e8e0a29bbd3b33134f'
-                }
+                html_message = f'''
+                    <h2>Password Reset Request</h2>
+                    <p>Your OTP for password reset in KKHSOU E-Office is: <strong>{new_otp}</strong></p>
+                    <p>This OTP will expire soon. Please do not share this with anyone.</p>
+                '''
                 
-                # Email content
-                email_data = {
-                    'to': email,
-                    'from': 'noreply@kkhsou.in',
-                    'subject': 'Password Reset OTP',
-                    'body': f'''
-                        <h2>Password Reset Request</h2>
-                        <p>Your OTP for password reset in KKHSOU E-Office is: <strong>{new_otp}</strong></p>
-                        <p>This OTP will expire soon. Please do not share this with anyone.</p>
-                    ''',
-                    'attachments': []
-                }
+                # Plain text version
+                plain_message = strip_tags(html_message)
 
                 try:
-                    # response = requests.post(url, headers=headers, json=email_data)
-                    # response.raise_for_status()  # Raises exception for 4XX/5XX status codes
+                    send_mail(
+                        subject='Password Reset OTP',
+                        message=plain_message,
+                        from_email=settings.EMAIL_HOST_USER,
+                        recipient_list=[email],
+                        html_message=html_message,
+                        fail_silently=False,
+                    )
+                
+                    return Response({
+                        'message': 'OTP sent successfully',
+                        'otp': new_otp
+                    }, status=status.HTTP_200_OK) 
 
-                    # if response.status_code == 200:
-                    #     return Response({
-                    #         'message': 'OTP sent successfully',
-                    #         'otp': new_otp
-                    #     }, status=status.HTTP_200_OK)
-                    # else:
-                    #     return Response({
-                    #         'error': 'Failed to send email',
-                    #         'details': response.text
-                    #     }, status=500)
-                        return Response({
-                            'message': 'OTP sent successfully',
-                            'otp': new_otp
-                        }, status=status.HTTP_200_OK) 
-
-                except requests.exceptions.RequestException as e:
+                except Exception as e:
+                    logger.error(f"Failed to send email: {e}")
                     return Response({
                         'error': 'Failed to send email',
                         'details': str(e)
-                    }, status=500)
+                    }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
             
             new_password = request.data.get("new_password")
 
             if not new_password:
                 return Response({"error": "Missing new password"}, status=status.HTTP_400_BAD_REQUEST)
 
-            # user.set_password(new_password)
-            # user.save()
+            user.set_password(new_password)
+            user.save()
 
             return Response({"message": "Password changed successfully"}, status=status.HTTP_200_OK)
         
