@@ -150,7 +150,7 @@ class ChangePasswordView(APIView):
             email = request.data.get("email")
             otp = request.data.get("otp")
             user = Employee.objects.filter(official_email=email).first()
-            print(otp)
+
             if not user:
                 return Response({"error": "Email not found"}, status=status.HTTP_404_NOT_FOUND)
 
@@ -239,7 +239,6 @@ class RefreshAccessToken(APIView):
 
     def post(self, request):
         try:
-            print('refresh access request received')
             refresh_token = request.data["refresh"]
             token = RefreshToken(refresh_token)
             

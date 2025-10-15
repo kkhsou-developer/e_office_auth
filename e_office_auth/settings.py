@@ -144,9 +144,10 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # manually added
 
 
-GOOGLE_CLIENT_ID = "664111386794-mhsc39n50cvmn3il26081uam9erikdjs.apps.googleusercontent.com"
-GOOGLE_CLIENT_SECRET = "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"
-GOOGLE_REDIRECT_URI = "http://127.0.0.1:8000/api/auth/google/callback/"
+GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
+GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")
+GOOGLE_REDIRECT_URI = os.getenv("GOOGLE_REDIRECT_URI")
+
 
 
 MEDIA_URL = '/media/'
