@@ -164,7 +164,7 @@ SIMPLE_JWT = {
     'SIGNING_KEY': open(os.path.join(JWT_SECRET_DIR, 'jwt_private.pem')).read(),
     'VERIFYING_KEY': open(os.path.join(JWT_SECRET_DIR, 'jwt_public.pem')).read(),
     "ACCESS_TOKEN_LIFETIME": timedelta(minutes=15),
-    "REFRESH_TOKEN_LIFETIME": timedelta(days=1),
+    "REFRESH_TOKEN_LIFETIME": timedelta(hours=8), 
     'USER_ID_FIELD': 'emp_id',
     'USER_ID_CLAIM': 'emp_id',
 }

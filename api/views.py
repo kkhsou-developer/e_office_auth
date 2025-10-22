@@ -31,18 +31,15 @@ def authenticate_and_redirect(email, redirect_uri, password=None, m_login = Fals
         HttpResponseRedirect: Redirect response with tokens or error message.
     """
     user = Employee.objects.filter(official_email=email).first()
-    invalidUser = False
 
     if not user:
-        invalidUser = True
+        logger.warning(f"Login attempt with invalid email: {email}")
+        return redirect(f"{redirect_uri}?error=Account is not registered.&status=404")
     
     if m_login and user and not user.check_password(password):
-        invalidUser = True
-    
-    if invalidUser:
-        # allow only existing users to login
         logger.warning(f"Login attempt with invalid credentials: {email}")
         return redirect(f"{redirect_uri}?error=Invalid credentials.&status=404")
+    
     
     if not user.approved:
         logger.warning(f"Login attempt with unapproved user: {email}")
@@ -57,7 +54,7 @@ def authenticate_and_redirect(email, redirect_uri, password=None, m_login = Fals
     respData = urlencode({
         "refresh": str(refresh),
         "access": str(refresh.access_token),
-        "e_id": user.emp_id,            
+        "e_id": user.emp_id,
     })
     logger.info(f"User {email} logged in successfully.")
 
@@ -223,13 +220,12 @@ class TokenExchange(APIView):
         e_id = parsed.get("e_id")[0]
 
         user = get_object_or_404(Employee, emp_id=e_id)
-        empSerializer = EmployeeSerializer(user)
 
         cache.delete(code)
         respData = {
-            'user': empSerializer.data,
             'refresh': parsed.get("refresh")[0],
-            'access': parsed.get("access")[0]
+            'access': parsed.get("access")[0],
+            'access_max_age' : int(settings.SIMPLE_JWT['ACCESS_TOKEN_LIFETIME'].total_seconds()),
         }
         return Response(respData, status=status.HTTP_200_OK)
 
@@ -248,7 +244,7 @@ class RefreshAccessToken(APIView):
             # Generate a new access token
             access_token = str(token.access_token)
             
-            return Response({"access": access_token}, status=status.HTTP_200_OK)
+            return Response({"access": access_token, 'access_max_age': int(settings.SIMPLE_JWT['ACCESS_TOKEN_LIFETIME'].total_seconds())}, status=status.HTTP_200_OK)
         except Exception as e:
             logger.error(f"Token renewal failed: {e}")
             return Response({"error": "Invalid refresh token or server error."}, status=status.HTTP_400_BAD_REQUEST)
