@@ -81,3 +81,21 @@ class EmployeeUserAccessibleModules(models.Model):
         managed = False
         db_table = 'employee_user_accessible_modules'
         unique_together = (('employee', 'module'),)
+
+
+
+class LoginLog(models.Model):
+    # Allow user to be null for failed attempts with non-existent usernames.
+    user = models.ForeignKey(Employee, on_delete=models.SET_NULL, null=True, blank=True)
+    attempt_email = models.CharField(max_length=255, help_text="The email used in the login attempt.")
+    
+    timestamp = models.DateTimeField(auto_now_add=True)
+    auth_method = models.CharField(max_length=50, null=True, blank=True)
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    user_agent = models.TextField(null=True, blank=True)
+    login_successful = models.BooleanField()
+    failure_reason = models.CharField(max_length=255, null=True, blank=True, help_text="Reason for login failure, if any.")
+
+    class Meta:
+        managed = False
+        db_table = 'employee_loginlog'

@@ -1,7 +1,7 @@
 from django.core.cache import cache
 from django.shortcuts import redirect, get_object_or_404
 from django.conf import settings
-from django.core.mail import send_mail
+from django.core.mail import send_mail 
 from django.utils.html import strip_tags
 
 from rest_framework.response import Response
@@ -9,22 +9,32 @@ from rest_framework.views import APIView
 from rest_framework import status
 from rest_framework_simplejwt.tokens import RefreshToken, UntypedToken
 from rest_framework.permissions import AllowAny
-from urllib.parse import urlencode, parse_qs
+from urllib.parse import urlencode, parse_qs 
 import requests, base64, uuid, logging
 
 from .models import *
 from .serializers import *
+
+import json
 # Create your views here.
 
 logger = logging.getLogger(__name__)
 
+def saveLoginLog(**kwargs):
+    """
+    Creates a LoginLog entry from keyword arguments.
+    The keys in kwargs should match the fields of the LoginLog model.
+    """
+    LoginLog.objects.create(**kwargs)
 
-def authenticate_and_redirect(email, redirect_uri, password=None, m_login = False):
+
+def authenticate_and_redirect(request, email, redirect_uri, password=None, m_login = False, ip=None, agent=None):
     """ Authenticate user and redirect to frontend with tokens in query params.
     Args:
+        request (HttpRequest): The request object.
         email (str, required): User's email for authentication.
         redirect_uri (str, required): URI to redirect after authentication.
-        password (str | None, Optional): User's password for manual login. Defaults to None.
+        password (str, optional): User's password for manual login. Defaults to None. 
         m_login (bool, Optional): Flag for manual login flow. Defaults to False.
 
     Returns:
@@ -32,20 +42,33 @@ def authenticate_and_redirect(email, redirect_uri, password=None, m_login = Fals
     """
     user = Employee.objects.filter(official_email=email).first()
 
+    loginLogData = {
+        'user': user,
+        'ip_address': ip or request.META.get('REMOTE_ADDR'),
+        'user_agent': agent or request.META.get('HTTP_USER_AGENT'),
+        'attempt_email': email,
+        'auth_method': 'email_password' if m_login else 'google_oauth2',
+    }
+
     if not user:
+        saveLoginLog(login_successful=False, failure_reason="Account is not registered.", **loginLogData)
         logger.warning(f"Login attempt with invalid email: {email}")
         return redirect(f"{redirect_uri}?error=Account is not registered.&status=404")
     
     if m_login and user and not user.check_password(password):
+        saveLoginLog(login_successful=False, failure_reason="Invalid credentials.", **loginLogData)
         logger.warning(f"Login attempt with invalid credentials: {email}")
         return redirect(f"{redirect_uri}?error=Invalid credentials.&status=404")
     
     
     if not user.approved:
+        saveLoginLog(login_successful=False, failure_reason="Account not approved.", **loginLogData)
         logger.warning(f"Login attempt with unapproved user: {email}")
         return redirect(f"{redirect_uri}?error=Approval pending, try again later&status=403") # only approved users can login
         
     refresh = RefreshToken.for_user(user)
+
+    saveLoginLog(login_successful=True, **loginLogData)
 
     # Add custom claims to the token payload
     refresh['official_email'] = user.official_email
@@ -70,8 +93,16 @@ class Google_login(APIView):
     permission_classes = [AllowAny]
     def get(self, request):
         frontend_redirect_uri = request.GET.get("response_uri", request.META.get('HTTP_REFERER'))
+        ip = request.META.get('REMOTE_ADDR')
+        agent = request.META.get('HTTP_USER_AGENT')
 
-        state = base64.urlsafe_b64encode(frontend_redirect_uri.encode()).decode()
+        stateData = {
+            'frontend_redirect_uri': frontend_redirect_uri,
+            'ip': ip,
+            'agent': agent,
+        }
+
+        state = base64.urlsafe_b64encode(json.dumps(stateData).encode()).decode()
         
         scopes = [
             'https://www.googleapis.com/auth/userinfo.email',
@@ -95,7 +126,11 @@ class Google_callback(APIView):
     def get(self, request):
         code = request.GET.get("code")
         state = request.GET.get("state")
-        frontend_redirect_uri = base64.urlsafe_b64decode(state).decode()
+
+        state_data = json.loads(base64.urlsafe_b64decode(state).decode())
+        frontend_redirect_uri = state_data.get('frontend_redirect_uri')
+        ip = state_data.get('ip')
+        agent = state_data.get('agent')
 
         try:        
             token_resp = requests.post(
@@ -124,7 +159,7 @@ class Google_callback(APIView):
         name = user_info.get("name", "")
         picture = user_info.get("picture", "")
 
-        return authenticate_and_redirect(email, redirect_uri=frontend_redirect_uri, m_login=False)
+        return authenticate_and_redirect(request, email, redirect_uri=frontend_redirect_uri, m_login=False, ip=ip, agent=agent)
 
 
 class Manual_login(APIView):
@@ -138,10 +173,11 @@ class Manual_login(APIView):
             return Response({"error": "Missing email or password"}, status=status.HTTP_400_BAD_REQUEST)
         
         frontend_redirect_uri = request.GET.get("response_uri", request.META.get('HTTP_REFERER'))
-        return authenticate_and_redirect(email, frontend_redirect_uri, password, m_login=True)
-    
+        return authenticate_and_redirect(request, email, frontend_redirect_uri, password, m_login=True)    
 
-class ChangePasswordView(APIView):
+
+
+class ChangePassword(APIView):
     def post(self, request):
         try:
             email = request.data.get("email")
@@ -269,19 +305,3 @@ class PublicKeyView(APIView):
             return Response({"error": "Could not retrieve public key."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-# class LogoutView(APIView):
-#     """
-#     Blacklists a refresh token to log a user out.
-#     """
-#     permission_classes = [AllowAny]
-
-#     def post(self, request):
-#         try:
-#             refresh_token = request.data["refresh"]
-#             token = RefreshToken(refresh_token)
-#             token.blacklist()
-#             logger.info(f"User logged out successfully by blacklisting token.")
-#             return Response(status=status.HTTP_205_RESET_CONTENT)
-#         except Exception as e:
-#             logger.error(f"Logout failed: {e}")
-#             return Response({"error": "Invalid token or server error."}, status=status.HTTP_400_BAD_REQUEST)
