@@ -99,3 +99,36 @@ class LoginLog(models.Model):
     class Meta:
         managed = False
         db_table = 'employee_loginlog'
+
+
+class StudyCenter(models.Model):
+    code = models.CharField(max_length=10, unique=True)
+    name = models.CharField(max_length=100)
+    
+    class Meta:
+        managed = False
+        db_table = 'examination_studycenter'
+
+    def __str__(self):
+        return f"{self.code} - {self.name}"
+
+
+class ExamCenter(models.Model):
+    code = models.CharField(max_length=10, unique=True)
+    name = models.CharField(max_length=100)
+    studyCenter = models.ForeignKey(StudyCenter, on_delete=models.CASCADE)
+
+    email = models.EmailField(null=True, blank=True)
+    phone = models.CharField(max_length=20, null=True, blank=True)
+    
+    class Meta:
+        managed = False
+        db_table = 'examination_examcenter'
+
+    def __str__(self):
+        return f"{self.code} - {self.name}"
+ 
+    @property
+    def emp_id(self):
+        """Property to mimic Employee.emp_id for JWT compatibility."""
+        return self.id

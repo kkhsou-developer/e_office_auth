@@ -15,3 +15,4 @@ class EmployeeSerializer(serializers.ModelSerializer):
         data['dept'] = instance.dept.name if instance.dept else None
         data['profile_pic'] = instance.profile_pic.url if instance.profile_pic else None
         return data
+    

@@ -28,7 +28,7 @@ def saveLoginLog(**kwargs):
     LoginLog.objects.create(**kwargs)
 
 
-def authenticate_and_redirect(request, email, redirect_uri, password=None, m_login = False, ip=None, agent=None):
+def authenticate_employee(request, email, redirect_uri, password=None, m_login = False, ip=None, agent=None):
     """ Authenticate user and redirect to frontend with tokens in query params.
     Args:
         request (HttpRequest): The request object.
@@ -87,12 +87,42 @@ def authenticate_and_redirect(request, email, redirect_uri, password=None, m_log
 
 
 
+def authenticate_examCenter(request, email, redirect_uri):
+    print('called this', email)
+    exam_center = ExamCenter.objects.filter(email=email).first()
+
+    if not exam_center:
+        logger.warning(f"Exam center login attempt with invalid email: {email}")
+        return redirect(f"{redirect_uri}?error=Exam center email not found.&status=404")
+
+    refresh = RefreshToken.for_user(exam_center)
+    refresh['user_type'] = 'exam_center'
+    refresh['exam_center_code'] = exam_center.code
+    refresh['email'] = exam_center.email
+
+    logger.info(f"Exam center {email} ({exam_center.code}) logged in successfully.")
+
+    respData = urlencode({
+        "refresh": str(refresh),
+        "access": str(refresh.access_token),
+        "e_id": exam_center.id,
+    })
+
+    uuidCode = str(uuid.uuid4())
+    cache.set(uuidCode, respData, timeout=300)
+    return redirect(f"{redirect_uri}?code={uuidCode}&exam_center=true&status=200")
+
+
+    
+
 
 
 class Google_login(APIView):
     permission_classes = [AllowAny]
     def get(self, request):
         frontend_redirect_uri = request.GET.get("response_uri", request.META.get('HTTP_REFERER'))
+        examCenter_login = str(request.GET.get("exam_center", 'false')).lower() == 'true'
+        
         ip = request.META.get('REMOTE_ADDR')
         agent = request.META.get('HTTP_USER_AGENT')
 
@@ -100,6 +130,7 @@ class Google_login(APIView):
             'frontend_redirect_uri': frontend_redirect_uri,
             'ip': ip,
             'agent': agent,
+            'examCenter_login': examCenter_login
         }
 
         state = base64.urlsafe_b64encode(json.dumps(stateData).encode()).decode()
@@ -131,6 +162,7 @@ class Google_callback(APIView):
         frontend_redirect_uri = state_data.get('frontend_redirect_uri')
         ip = state_data.get('ip')
         agent = state_data.get('agent')
+        examCenter_login = state_data.get('examCenter_login')
 
         try:        
             token_resp = requests.post(
@@ -159,7 +191,10 @@ class Google_callback(APIView):
         name = user_info.get("name", "")
         picture = user_info.get("picture", "")
 
-        return authenticate_and_redirect(request, email, redirect_uri=frontend_redirect_uri, m_login=False, ip=ip, agent=agent)
+        if examCenter_login:
+            return authenticate_examCenter(request, email, redirect_uri=frontend_redirect_uri)
+        
+        return authenticate_employee(request, email, redirect_uri=frontend_redirect_uri, m_login=False, ip=ip, agent=agent)
 
 
 class Manual_login(APIView):
@@ -173,7 +208,7 @@ class Manual_login(APIView):
             return Response({"error": "Missing email or password"}, status=status.HTTP_400_BAD_REQUEST)
         
         frontend_redirect_uri = request.GET.get("response_uri", request.META.get('HTTP_REFERER'))
-        return authenticate_and_redirect(request, email, frontend_redirect_uri, password, m_login=True)    
+        return authenticate_employee(request, email, frontend_redirect_uri, password, m_login=True)    
 
 
 
@@ -189,6 +224,8 @@ class ChangePassword(APIView):
 
             if not otp or otp == '':
                 new_otp = str(uuid.uuid4())[:6]
+                # store opt in session
+                request.session['password_reset_otp'] = new_otp
 
                 html_message = f'''
                     <h2>Password Reset Request</h2>
@@ -226,6 +263,10 @@ class ChangePassword(APIView):
             if not new_password:
                 return Response({"error": "Missing new password"}, status=status.HTTP_400_BAD_REQUEST)
 
+            if request.session.get('password_reset_otp') != otp:
+                return Response({"error": "Invalid OTP"}, status=status.HTTP_400_BAD_REQUEST)
+
+            del request.session['password_reset_otp'] 
             user.set_password(new_password)
             user.save()
 
@@ -245,6 +286,8 @@ class TokenExchange(APIView):
 
     def get(self, request):
         code = request.GET.get("code")
+        is_examCenter = str(request.GET.get("exam_center", 'false')).lower() == 'true'
+
         if not code:
             return Response({"error": "Missing code"}, status=status.HTTP_400_BAD_REQUEST)
         
@@ -255,14 +298,20 @@ class TokenExchange(APIView):
         parsed = parse_qs(data)
         e_id = parsed.get("e_id")[0]
 
-        user = get_object_or_404(Employee, emp_id=e_id)
-
-        cache.delete(code)
         respData = {
             'refresh': parsed.get("refresh")[0],
             'access': parsed.get("access")[0],
             'access_max_age' : int(settings.SIMPLE_JWT['ACCESS_TOKEN_LIFETIME'].total_seconds()),
         }
+
+        if is_examCenter:
+            exam_center = get_object_or_404(ExamCenter, id=e_id)
+            respData['user_type'] = 'exam_center'
+        else:
+            user = get_object_or_404(Employee, emp_id=e_id)
+            respData['user_type'] = 'employee'
+
+        cache.delete(code)
         return Response(respData, status=status.HTTP_200_OK)
 
 

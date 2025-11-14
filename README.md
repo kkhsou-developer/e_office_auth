@@ -130,7 +130,7 @@ Two-step password change process using email OTP verification.
 
 **Response:**
 - `200 OK`: OTP sent successfully
-- `404 Not Found`: Email not found
+- `404 Not Found`: If the email does not exist.
 - `500 Internal Server Error`: Email sending failed
 
 **Step 2 - Verify OTP and Change Password:**
