@@ -94,9 +94,9 @@ def authenticate_examCenter(request, email, redirect_uri, password=None, m_login
         logger.warning(f"Exam center login attempt with invalid email: {email}")
         return redirect(f"{redirect_uri}?error=Exam center email not found.&exam_center=true&status=404")
 
-    if m_login and not exam_center.check_password(password):
-        logger.warning(f"Exam CenterLogin attempt with invalid credentials: {email}")
-        return redirect(f"{redirect_uri}?error=Invalid credentials.&exam_center=true&status=404")
+    if m_login and (not exam_center.password or not exam_center.check_password(password)):
+            logger.warning(f"Exam Center login attempt with invalid credentials for {email}")
+            return redirect(f"{redirect_uri}?error=Invalid credentials.&exam_center=true&status=404")
     
     refresh = RefreshToken.for_user(exam_center)
     refresh['user_type'] = 'exam_center'
