@@ -120,6 +120,7 @@ class ExamCenter(models.Model):
 
     email = models.EmailField(null=True, blank=True)
     phone = models.CharField(max_length=20, null=True, blank=True)
+    password = models.CharField(max_length=256, null=True, blank=True)
     
     class Meta:
         managed = False
@@ -132,3 +133,10 @@ class ExamCenter(models.Model):
     def emp_id(self):
         """Property to mimic Employee.emp_id for JWT compatibility."""
         return self.id
+    
+    def check_password(self, raw_password):
+        return django_check_password(raw_password, self.password)
+    
+    def set_password(self, raw_password):
+        self.password = make_password(raw_password)
+    
